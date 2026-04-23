@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head><title>Edge Cases</title></head>
+<body>
+<article>
+  <h1>Edge Cases</h1>
+  <!-- This comment should not appear -->
+  <p>Inline <code>const x = 1;</code> and <strong>bold</strong> and <em>italic</em>.</p>
+  <p>Image missing alt: <img src="/thumb.png"></p>
+  <p>Srcset image: <img srcset="/a.png 1x, /b.png 2x" src="/fallback.png" alt="responsive"></p>
+  <p>Mailto should be preserved: <a href="mailto:hi@example.org">contact</a></p>
+  <p>Anchor should stay local: <a href="#section">jump</a></p>
+  <p>Absolute external anchor target: <a href="https://ext.example/path#frag">ext frag</a></p>
+  <h2>Table with colspan</h2>
+  <table>
+    <tr><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td colspan="2">merged</td><td>c</td></tr>
+    <tr><td>1</td><td>2</td><td>3</td></tr>
+  </table>
+  <h2>Nested blockquote</h2>
+  <blockquote>
+    <p>Outer.</p>
+    <blockquote><p>Inner.</p></blockquote>
+  </blockquote>
+  <h2>Task list</h2>
+  <ul>
+    <li><input type="checkbox" checked> Done</li>
+    <li><input type="checkbox"> Todo</li>
+  </ul>
+</article>
+</body>
+</html>

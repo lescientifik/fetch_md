@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>The State of Markdown — 2026</title>
+  <meta name="description" content="A long-form piece on where markdown stands today.">
+  <script>window.analytics = {}</script>
+  <style>body { color: red }</style>
+</head>
+<body>
+  <nav><a href="/">home</a> | <a href="/about">about</a></nav>
+  <article>
+    <h1>The State of Markdown — 2026</h1>
+    <p class="byline">By <a href="https://example.com/author/jane">Jane Doe</a>, published 2026-04-01.</p>
+
+    <p>Markdown remains the preferred interchange format for LLM ingestion. See <a href="https://commonmark.org">CommonMark</a> and <a href="https://github.github.com/gfm/">GFM</a> for specs. A local reference lives at <a href="/docs/guide">our guide</a>.</p>
+
+    <h2>Feature matrix</h2>
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>CommonMark</th><th>GFM</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Headings</td><td>yes</td><td>yes</td></tr>
+        <tr><td>Tables</td><td>no</td><td>yes</td></tr>
+        <tr><td>Strikethrough</td><td>no</td><td>yes</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Images</h2>
+    <p>Relative image: <img src="/images/diagram.png" alt="Diagram"></p>
+    <p>Absolute image: <img src="https://cdn.example.com/hero.jpg" alt="Hero"></p>
+
+    <h2>Code</h2>
+    <pre><code class="language-ts">export function greet(name: string) {
+  return `Hello, ${name}!`;
+}</code></pre>
+
+    <h2>Lists</h2>
+    <ul>
+      <li>Fruit
+        <ul>
+          <li>Apple</li>
+          <li>Banana</li>
+        </ul>
+      </li>
+      <li>Vegetables
+        <ol>
+          <li>Carrot</li>
+          <li>Daikon</li>
+        </ol>
+      </li>
+    </ul>
+
+    <h2>Quotes</h2>
+    <blockquote>
+      <p>First paragraph inside a blockquote.</p>
+      <p>Second paragraph inside the same blockquote.</p>
+    </blockquote>
+
+    <h2>Emphasis</h2>
+    <p>This word is <del>gone</del> deleted, and <s>this one too</s>. Visit <a href="https://other-domain.net/resource?x=1">other-domain.net</a> for more.</p>
+  </article>
+  <footer><p>Footer text with <a href="https://example.com/privacy">privacy</a> info.</p></footer>
+  <script>console.log("bye")</script>
+</body>
+</html>

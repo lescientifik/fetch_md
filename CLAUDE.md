@@ -16,29 +16,30 @@
 ## Architecture actuelle
 
 - `src/fetchMd.ts` — fetch (Bun/globalThis fetch avec UA Chrome) puis délégation à `htmlToMarkdown`.
-- `src/processHtml.ts` — fonction pure : `parseHTML` (linkedom) + shim CSS + `Defuddle` (extraction article) + `turndown` (conversion MD) + résolution URLs relatives→absolues + frontmatter.
+- `src/processHtml.ts` — fonction pure : `parseHTML` (linkedom) + shim CSS + dispatch vers un extractor (article) + `turndown` (conversion MD) + résolution URLs relatives→absolues + frontmatter.
+- `src/extractors/` — adaptateurs interchangeables `{ document, url } → { title?, contentHtml }`. `defuddle.ts` (défaut), `readability.ts` (`@mozilla/readability` — 3-6× plus rapide mais perd les code blocks classés, voir `docs/COMPARISON.md`). Registre dans `index.ts`, option exposée via `HtmlToMarkdownOptions.extractor`.
 - `src/frontmatter.ts` — YAML minimal (title + url).
 - `src/timing.ts` — helpers `now()` / `elapsed()`.
 - `scripts/benchmark.ts` — CLI tokens + timings.
 - `scripts/bench-local.ts` — bench end-to-end via `Bun.serve`.
 - `scripts/compare-extractors.ts` — bench Defuddle vs `@mozilla/readability` (dev-dep) sur fixtures ou URLs ; mesure vitesse, texte, liens, code blocks.
-- `test/processHtml.test.ts` + `test/fetchMd.test.ts` — 29 tests sur fixtures locales.
+- `test/processHtml.test.ts` + `test/fetchMd.test.ts` + `test/extractors.test.ts` — 45 tests sur fixtures locales (incluant la dispatch d'extracteur et le chemin readability).
 
 ## Projet — vue rapide
 
-Objectif : `fetchMd(url)` en TypeScript — télécharge une page web et produit un Markdown clair pour consommation LLM. Extraction d'article (Defuddle) + conversion MD (Turndown via Defuddle). Frontmatter YAML minimal (title + url). Préservation stricte des liens externes, tableaux, images.
+Objectif : `fetchMd(url)` en TypeScript — télécharge une page web et produit un Markdown clair pour consommation LLM. Extraction d'article pluggable (Defuddle par défaut, Readability opt-in) + conversion MD (Turndown partagé). Frontmatter YAML minimal (title + url). Préservation stricte des liens externes, tableaux, images.
 
 ## Stack
 
 - **Bun** (runtime, deps, tests). Pas de npm, pas de build step.
-- **Dépendances runtime** : `defuddle`, `linkedom`.
-- **Dépendances dev** : `typescript`, `@types/bun`, `gpt-tokenizer`, `@mozilla/readability` (utilisée uniquement par `scripts/compare-extractors.ts`).
+- **Dépendances runtime** : `defuddle`, `@mozilla/readability`, `linkedom`, `turndown`, `turndown-plugin-gfm`.
+- **Dépendances dev** : `typescript`, `@types/bun`, `@types/turndown`, `gpt-tokenizer`.
 
 ## Commandes
 
 ```sh
 bun install                                        # installer deps
-bun test                                           # lancer les tests unitaires (29 tests)
+bun test                                           # lancer les tests unitaires (45 tests)
 bun run bench test/fixtures/*.html                 # benchmark tokens sur fixtures
 bun run bench --url https://example.com            # benchmark tokens + timings sur URL réelle
 bun run scripts/bench-local.ts test/fixtures/*.html # benchmark end-to-end avec Bun.serve local (overhead fetchMd vs fetch brut)

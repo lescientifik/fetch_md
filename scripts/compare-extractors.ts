@@ -21,14 +21,13 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { parseHTML } from 'linkedom';
-import Defuddle from 'defuddle';
-import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
 // @ts-expect-error -- turndown-plugin-gfm has no types
 import { gfm } from 'turndown-plugin-gfm';
 import { countTokens } from 'gpt-tokenizer';
 import { elapsed, now } from '../src/timing.ts';
 import { DEFAULT_USER_AGENT } from '../src/fetchMd.ts';
+import { getExtractor, type ExtractorName } from '../src/extractors/index.ts';
 
 // ------------------------------------------------------------------
 // Shared Turndown (same rules as src/processHtml.ts so the MD is comparable).
@@ -76,19 +75,6 @@ function shimDocument(doc: Document): void {
   }
 }
 
-const SILENT = ['log', 'warn', 'error', 'info', 'debug'] as const;
-function silent<T>(fn: () => T): T {
-  const saved = SILENT.map((m) => console[m]);
-  for (const m of SILENT) console[m] = () => {};
-  try {
-    return fn();
-  } finally {
-    SILENT.forEach((m, i) => {
-      console[m] = saved[i]!;
-    });
-  }
-}
-
 // ------------------------------------------------------------------
 // Noise removal + URL absolutization on the live DOM.
 // Applied ONCE per (source, extractor) run — readability mutates the DOM
@@ -124,7 +110,8 @@ function resolveUrls(doc: Document, baseUrl: string): void {
 }
 
 // ------------------------------------------------------------------
-// Per-extractor adapters: identical shape so the driver is symmetric.
+// Single driver — delegates the extract step to the shared adapters in
+// src/extractors/ so the bench tracks any future changes to them.
 // ------------------------------------------------------------------
 interface ExtractionResult {
   title: string | undefined;
@@ -137,7 +124,7 @@ interface ExtractionResult {
   markdown: string;
 }
 
-function runDefuddle(html: string, url: string): ExtractionResult {
+function run(html: string, url: string, name: ExtractorName): ExtractionResult {
   const t0 = now();
   const { document } = parseHTML(html);
   shimDocument(document as unknown as Document);
@@ -146,37 +133,13 @@ function runDefuddle(html: string, url: string): ExtractionResult {
   const t1 = now();
   removeNoise(document as unknown as Document);
   resolveUrls(document as unknown as Document, url);
-  const result = silent(() => new Defuddle(document as unknown as Document, { url }).parse());
-  const contentHtml = result.content || '';
-  const title = result.title?.trim() ||
-    document.querySelector('title')?.textContent?.trim() || undefined;
-  // Text length: compute via a throwaway linkedom parse on the extracted HTML.
+  const { title: extractedTitle, contentHtml } =
+    getExtractor(name)({ document: document as unknown as Document, url });
+  const title = extractedTitle ??
+    document.querySelector('title')?.textContent?.trim() ?? undefined;
+  // textLen on a throwaway parse of the extracted HTML — cheap and fair to both.
   const { document: holder } = parseHTML(`<div>${contentHtml}</div>`);
   const textLen = (holder.querySelector('div')?.textContent ?? '').length;
-  const extractMs = elapsed(t1);
-
-  const t2 = now();
-  const markdown = turndown.turndown(contentHtml).trim();
-  const convertMs = elapsed(t2);
-
-  return { title, contentHtml, textLen, parseMs, extractMs, convertMs,
-           totalMs: parseMs + extractMs + convertMs, markdown };
-}
-
-function runReadability(html: string, url: string): ExtractionResult {
-  const t0 = now();
-  const { document } = parseHTML(html);
-  shimDocument(document as unknown as Document);
-  const parseMs = elapsed(t0);
-
-  const t1 = now();
-  removeNoise(document as unknown as Document);
-  resolveUrls(document as unknown as Document, url);
-  const art = silent(() => new Readability(document as unknown as Document).parse());
-  const contentHtml = art?.content || '';
-  const title = art?.title?.trim() ||
-    document.querySelector('title')?.textContent?.trim() || undefined;
-  const textLen = (art?.textContent ?? '').length;
   const extractMs = elapsed(t1);
 
   const t2 = now();
@@ -209,7 +172,7 @@ function countCodeFences(md: string): number {
 
 interface Row {
   source: string;
-  extractor: 'defuddle' | 'readability';
+  extractor: ExtractorName;
   textLen: number;
   mdTokens: number;
   mdBytes: number;
@@ -222,11 +185,11 @@ interface Row {
   totalMs: number;
 }
 
-function measure(source: string, html: string, url: string, extractor: 'defuddle' | 'readability',
+function measure(source: string, html: string, url: string, extractor: ExtractorName,
                  repeat: number): Row {
   const runs: ExtractionResult[] = [];
   for (let i = 0; i < repeat; i++) {
-    runs.push(extractor === 'defuddle' ? runDefuddle(html, url) : runReadability(html, url));
+    runs.push(run(html, url, extractor));
   }
   // Take median-ish: pick the minimum totalMs (warmed caches, excludes GC hiccups).
   runs.sort((a, b) => a.totalMs - b.totalMs);
@@ -365,8 +328,8 @@ async function main(): Promise<void> {
 
   // Warmup: one full run of each extractor on the first source (drops JIT cost).
   if (sources.length > 0) {
-    runDefuddle(sources[0]!.html, sources[0]!.url);
-    runReadability(sources[0]!.html, sources[0]!.url);
+    run(sources[0]!.html, sources[0]!.url, 'defuddle');
+    run(sources[0]!.html, sources[0]!.url, 'readability');
   }
 
   const rows: Row[] = [];
@@ -374,11 +337,9 @@ async function main(): Promise<void> {
     rows.push(measure(s.name, s.html, s.url, 'defuddle', repeat));
     rows.push(measure(s.name, s.html, s.url, 'readability', repeat));
     if (dump) {
-      const d = runDefuddle(s.html, s.url);
-      const r = runReadability(s.html, s.url);
       const safe = s.name.replace(/[^a-z0-9._-]/gi, '_');
-      Bun.write(`${dump}/${safe}.defuddle.md`, d.markdown);
-      Bun.write(`${dump}/${safe}.readability.md`, r.markdown);
+      Bun.write(`${dump}/${safe}.defuddle.md`, run(s.html, s.url, 'defuddle').markdown);
+      Bun.write(`${dump}/${safe}.readability.md`, run(s.html, s.url, 'readability').markdown);
     }
   }
 

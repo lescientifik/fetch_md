@@ -54,6 +54,16 @@ Format : bullet dense, orienté info. Pas de prose. Ajouter à la fin ou sous la
 - Critère dur : test qui vérifie que tous les hosts externes `https?://` du HTML d'origine sont préservés dans le MD.
 - **Gestion des versions de dépendances — règle dure** : pour toute nouvelle dépendance, ne JAMAIS inventer un numéro de version dans `package.json`. Toujours soit (a) `bun add <pkg>` sans version (bun résout la dernière), soit (b) vérifier la version courante via `npm view <pkg> version` ou la page releases GitHub **avant** d'écrire le `package.json`. Conséquence concrète observée : en écrivant `"defuddle": "^0.6.0"` par réflexe (numéro vu dans un billet de blog de recherche, sans vérification), on a installé **0.6.6 au lieu de 0.18.1** — 12 minor releases de retard, ~4 mois d'écart, plusieurs correctifs critiques manqués (anti-faux-positifs Tailwind via v0.11, regex à frontière de mot v0.15, remplacement de `'ad'` par `'advert'/'ad-'/'ads'`, support Chroma/CodeMirror). Résultat : une heure de debug sur un bug (code blocks de bun.sh/docs effacés à cause du pattern `'ad'` matchant `shadow-none`/`leading-6`) déjà corrigé upstream. Coût évitable.
 
+## Session 2026-04-23 — implémentation dual-extractor (Defuddle + Readability)
+- Option `extractor?: 'defuddle' | 'readability'` ajoutée à `HtmlToMarkdownOptions` (défaut `'defuddle'`). Remonte naturellement via `FetchMdOptions extends HtmlToMarkdownOptions`.
+- `@mozilla/readability` promu **runtime dep** (était devDep).
+- Adaptateurs dans `src/extractors/` : `types.ts` (interface `Extractor = ({document, url}) → {title?, contentHtml}`), `defuddle.ts` (contient `withSilencedConsole` déplacée depuis `processHtml.ts`), `readability.ts`, `index.ts` (registre + `DEFAULT_EXTRACTOR` + `getExtractor`). Exports publics complétés dans `src/index.ts`.
+- `processHtml.ts` : simplifié, la branche `mode === 'article'` dispatche via `getExtractor(name)`. Shim CSS + noise removal + URL absolutization restent partagés (pré-extraction).
+- `scripts/compare-extractors.ts` : une seule fonction `run(html, url, name)` qui délègue au registre central. Plus de duplication avec les adaptateurs.
+- Tests : nouveau fichier `test/extractors.test.ts` (16 tests) — registre, dispatch, cas Readability sur `article.html`/`tricky.html`, assertions différentielles (```ts` chez Defuddle, fence vide chez Readability ; dédup H1 chez Readability). **45/45 tests pass** (29 existants + 16 nouveaux).
+- E2E smoke via `Bun.serve` loopback : Defuddle 93 ms extract → `The State of Markdown` (date strippée), Readability 18 ms → `The State of Markdown — 2026` (date préservée). ```ts``` seulement côté Defuddle.
+- Zéro breaking change : les tests existants passent tels quels parce que le défaut reste Defuddle.
+
 ## Session 2026-04-23 — bench Defuddle vs @mozilla/readability
 - Branche : `claude/compare-readability-libraries-Gdkba`.
 - Ajouté `@mozilla/readability` 0.6.0 en **devDep** (pas runtime) — utilisée uniquement par `scripts/compare-extractors.ts`.

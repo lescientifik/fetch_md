@@ -13,13 +13,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "defuddle": "^0.18.1",
     "linkedom": "^0.18.0",
     "turndown": "^7.2.4",
     "turndown-plugin-gfm": "^1.0.2"
   },
   "devDependencies": {
-    "@mozilla/readability": "^0.6.0",
     "@types/bun": "latest",
     "@types/turndown": "^5.0.6",
     "gpt-tokenizer": "^2.9.0",

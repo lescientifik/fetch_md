@@ -159,20 +159,30 @@ latence**, avec des profils opposés.
 - **Zero-dep Apache-2** — Mozilla-maintenu, présent dans Firefox Reader View
   depuis 15 ans, donc très résilient sur HTML archivé/ancien.
 
-### Reco concrète
+### Reco concrète (implémentée dans ce commit)
 
-1. Étendre `HtmlToMarkdownOptions` avec `extractor?: 'defuddle' | 'readability'`
-   (défaut `'defuddle'`).
-2. Isoler les deux adaptateurs dans `src/extractors/{defuddle,readability}.ts`
-   derrière une interface commune (déjà prototypée dans `scripts/compare-extractors.ts`
-   lignes ~85-155). Coût : ~80 LOC, zéro breaking change.
-3. Ajouter un test par fixture qui exerce les deux chemins (assertions
-   différentes : Defuddle vérifie les fences avec langage, Readability
-   vérifie la dé-dup du titre).
-4. Documenter la règle de choix dans `README.md` / `CLAUDE.md` :
-   *Defuddle par défaut, Readability si pages atypiques OU latence
-   critique (batch size élevé).*
-5. Laisser `mode: 'full'` tel quel comme échappatoire ultime.
+1. ✅ `HtmlToMarkdownOptions.extractor?: 'defuddle' | 'readability'`
+   (défaut `'defuddle'`) — plumbé aussi via `fetchMd` puisque
+   `FetchMdOptions extends HtmlToMarkdownOptions`.
+2. ✅ Adaptateurs dans `src/extractors/{types,defuddle,readability,index}.ts`
+   derrière l'interface `Extractor = ({document, url}) → {title?, contentHtml}`.
+   Registre `getExtractor(name)` + `DEFAULT_EXTRACTOR` exportés.
+3. ✅ `test/extractors.test.ts` — 16 tests : registre, dispatch, cas
+   Readability sur fixtures, assertions différentielles (```ts` chez
+   Defuddle, fence vide chez Readability ; dédup H1 côté Readability).
+4. `mode: 'full'` reste tel quel comme échappatoire.
+
+### Usage
+
+```ts
+import { fetchMd } from 'fetch-md';
+
+// Défaut : Defuddle (qualité maximale, code blocks classés préservés).
+await fetchMd('https://example.com/post');
+
+// Opt-in Readability : 3-6× plus rapide, plus permissive.
+await fetchMd('https://example.com/post', { extractor: 'readability' });
+```
 
 ### Ce que je ne ferais **pas**
 

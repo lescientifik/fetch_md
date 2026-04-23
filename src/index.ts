@@ -9,3 +9,15 @@ export type {
 } from './processHtml.ts';
 export { buildFrontmatter } from './frontmatter.ts';
 export type { FrontmatterFields } from './frontmatter.ts';
+export {
+  DEFAULT_EXTRACTOR,
+  extractDefuddle,
+  extractReadability,
+  getExtractor,
+} from './extractors/index.ts';
+export type {
+  Extractor,
+  ExtractorInput,
+  ExtractorName,
+  ExtractorOutput,
+} from './extractors/index.ts';

@@ -10,33 +10,37 @@
 - [`MEMORY.md`](./MEMORY.md) — journal dense : décisions, progression, pièges. À relire au début de chaque session avant tout travail.
 - [`docs/RESEARCH.md`](./docs/RESEARCH.md) — synthèse recherche web sur HTML→MD pour LLM : libs évaluées (Defuddle, Turndown, Readability, linkedom, undici), benchmarks de réduction de tokens, justification des choix.
 - [`docs/FETCH_PLAN.md`](./docs/FETCH_PLAN.md) — plan d'implémentation initial : API, étapes, fichiers, vérification.
+- [`docs/COMPARISON.md`](./docs/COMPARISON.md) — bench Defuddle vs `@mozilla/readability` (vitesse, liens, code blocks) + reco : supporter les deux, Defuddle par défaut.
 - [`demo.md`](./demo.md) — démo exécutable via [simonw/showboat](https://github.com/simonw/showboat) : montre les tests, les benchmarks, la conversion d'une vraie page (bun.sh/docs → 99.1% de réduction de tokens). Regénérer avec `uvx showboat verify demo.md`.
+- [`demo-extractors.md`](./demo-extractors.md) — démo showboat dédiée à la feature dual-extractor : layout `src/extractors/`, tests (45 pass), comparaison fixtures, différentiel `` ```ts `` / plain fence, wiring du dispatch. Regénérer avec `uvx showboat verify demo-extractors.md`.
 
 ## Architecture actuelle
 
 - `src/fetchMd.ts` — fetch (Bun/globalThis fetch avec UA Chrome) puis délégation à `htmlToMarkdown`.
-- `src/processHtml.ts` — fonction pure : `parseHTML` (linkedom) + shim CSS + `Defuddle` (extraction article) + `turndown` (conversion MD) + résolution URLs relatives→absolues + frontmatter.
+- `src/processHtml.ts` — fonction pure : `parseHTML` (linkedom) + shim CSS + dispatch vers un extractor (article) + `turndown` (conversion MD) + résolution URLs relatives→absolues + frontmatter.
+- `src/extractors/` — adaptateurs interchangeables `{ document, url } → { title?, contentHtml }`. `defuddle.ts` (défaut), `readability.ts` (`@mozilla/readability` — 3-6× plus rapide mais perd les code blocks classés, voir `docs/COMPARISON.md`). Registre dans `index.ts`, option exposée via `HtmlToMarkdownOptions.extractor`.
 - `src/frontmatter.ts` — YAML minimal (title + url).
 - `src/timing.ts` — helpers `now()` / `elapsed()`.
 - `scripts/benchmark.ts` — CLI tokens + timings.
 - `scripts/bench-local.ts` — bench end-to-end via `Bun.serve`.
-- `test/processHtml.test.ts` + `test/fetchMd.test.ts` — 29 tests sur fixtures locales.
+- `scripts/compare-extractors.ts` — bench Defuddle vs `@mozilla/readability` (dev-dep) sur fixtures ou URLs ; mesure vitesse, texte, liens, code blocks.
+- `test/processHtml.test.ts` + `test/fetchMd.test.ts` + `test/extractors.test.ts` — 45 tests sur fixtures locales (incluant la dispatch d'extracteur et le chemin readability).
 
 ## Projet — vue rapide
 
-Objectif : `fetchMd(url)` en TypeScript — télécharge une page web et produit un Markdown clair pour consommation LLM. Extraction d'article (Defuddle) + conversion MD (Turndown via Defuddle). Frontmatter YAML minimal (title + url). Préservation stricte des liens externes, tableaux, images.
+Objectif : `fetchMd(url)` en TypeScript — télécharge une page web et produit un Markdown clair pour consommation LLM. Extraction d'article pluggable (Defuddle par défaut, Readability opt-in) + conversion MD (Turndown partagé). Frontmatter YAML minimal (title + url). Préservation stricte des liens externes, tableaux, images.
 
 ## Stack
 
 - **Bun** (runtime, deps, tests). Pas de npm, pas de build step.
-- **Dépendances runtime** : `defuddle`, `linkedom`.
-- **Dépendances dev** : `typescript`, `@types/bun`, `gpt-tokenizer`.
+- **Dépendances runtime** : `defuddle`, `@mozilla/readability`, `linkedom`, `turndown`, `turndown-plugin-gfm`.
+- **Dépendances dev** : `typescript`, `@types/bun`, `@types/turndown`, `gpt-tokenizer`.
 
 ## Commandes
 
 ```sh
 bun install                                        # installer deps
-bun test                                           # lancer les tests unitaires (29 tests)
+bun test                                           # lancer les tests unitaires (45 tests)
 bun run bench test/fixtures/*.html                 # benchmark tokens sur fixtures
 bun run bench --url https://example.com            # benchmark tokens + timings sur URL réelle
 bun run scripts/bench-local.ts test/fixtures/*.html # benchmark end-to-end avec Bun.serve local (overhead fetchMd vs fetch brut)

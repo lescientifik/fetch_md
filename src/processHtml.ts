@@ -1,9 +1,9 @@
 import { parseHTML } from 'linkedom';
-import Defuddle from 'defuddle';
 import TurndownService from 'turndown';
 // @ts-expect-error -- turndown-plugin-gfm has no types
 import { gfm } from 'turndown-plugin-gfm';
 import { buildFrontmatter } from './frontmatter.ts';
+import { DEFAULT_EXTRACTOR, getExtractor, type ExtractorName } from './extractors/index.ts';
 import { elapsed, now } from './timing.ts';
 
 export type Mode = 'article' | 'full';
@@ -11,6 +11,13 @@ export type Mode = 'article' | 'full';
 export interface HtmlToMarkdownOptions {
   mode?: Mode;
   includeFrontmatter?: boolean;
+  /**
+   * Which article extractor to use in `mode: 'article'`. Defaults to
+   * `'defuddle'`. `'readability'` is ~5× faster but loses fenced code-block
+   * language hints and most code-block boxes on sites like GitHub READMEs or
+   * Shiki-rendered docs. See `docs/COMPARISON.md`.
+   */
+  extractor?: ExtractorName;
 }
 
 export interface HtmlToMarkdownTimings {
@@ -72,23 +79,6 @@ function shimDocument(doc: Document): void {
   }
   if (!(doc as { styleSheets?: unknown }).styleSheets) {
     Object.defineProperty(doc, 'styleSheets', { value: [], configurable: true });
-  }
-}
-
-const SILENT_METHODS = ['log', 'warn', 'error', 'info', 'debug'] as const;
-
-function withSilencedConsole<T>(fn: () => T): T {
-  const saved: Array<(...args: unknown[]) => void> = [];
-  for (const m of SILENT_METHODS) {
-    saved.push(console[m]);
-    console[m] = () => {};
-  }
-  try {
-    return fn();
-  } finally {
-    for (let i = 0; i < SILENT_METHODS.length; i++) {
-      console[SILENT_METHODS[i]!] = saved[i]!;
-    }
   }
 }
 
@@ -180,12 +170,10 @@ export function htmlToMarkdown(
   let title: string | undefined = document.querySelector('title')?.textContent?.trim() || undefined;
 
   if (mode === 'article') {
-    const result = withSilencedConsole(() => {
-      const inst = new Defuddle(document as unknown as Document, { url });
-      return inst.parse();
-    });
-    contentHtml = result.content || '';
-    if (result.title && result.title.trim()) title = result.title.trim();
+    const extract = getExtractor(options.extractor ?? DEFAULT_EXTRACTOR);
+    const result = extract({ document: document as unknown as Document, url });
+    contentHtml = result.contentHtml;
+    if (result.title) title = result.title;
     if (!contentHtml || contentHtml.trim().length === 0) {
       contentHtml = document.body?.innerHTML ?? '';
     }

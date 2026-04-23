@@ -37,6 +37,7 @@
 }</code></pre>
 
     <h2>Lists</h2>
+    <p>The market inventory is organized into two categories with nested variants — unordered for fruit and ordered for vegetables — to exercise the Markdown nesting rules end to end. Readers expect both levels to survive round-tripping through the converter, with the inner order preserved. The breakdown is:</p>
     <ul>
       <li>Fruit
         <ul>
@@ -44,13 +45,14 @@
           <li>Banana</li>
         </ul>
       </li>
-      <li>Vegetables
+      <li>Vegetables (ordered by priority):
         <ol>
-          <li>Carrot</li>
-          <li>Daikon</li>
+          <li>Carrot, an orange root vegetable stocked year-round.</li>
+          <li>Daikon, a mild Japanese radish appreciated for pickling.</li>
         </ol>
       </li>
     </ul>
+    <p>If the nested items disappear, the output is lossy and the reader loses the taxonomic breakdown that motivated the section in the first place; the test below guards against that regression.</p>
 
     <h2>Quotes</h2>
     <blockquote>

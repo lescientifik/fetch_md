@@ -24,7 +24,8 @@ describe('fetchMd', () => {
       expect(result.url).toBe(url);
       expect(result.markdown).toContain('The State of Markdown');
       expect(result.markdown).toContain('[CommonMark](https://commonmark.org/)');
-      expect(result.metadata.title).toBe('The State of Markdown — 2026');
+      // Defuddle ≥ 0.12 may strip the "— YYYY" suffix from titles during normalization.
+      expect(result.metadata.title).toMatch(/^The State of Markdown(?: — 2026)?$/);
       expect(result.timings.fetchMs).toBeGreaterThan(0);
       expect(result.timings.totalMs).toBeGreaterThanOrEqual(
         result.timings.fetchMs + result.timings.parseMs,

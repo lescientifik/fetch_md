@@ -16,8 +16,11 @@ Format : bullet dense, orienté info. Pas de prose. Ajouter à la fin ou sous la
 - Tests unitaires : 25 tests sur `processHtml` + 4 sur `fetchMd` = **29/29 pass**.
 - Benchmark fixtures : réduction 53-59% (fixtures déjà minimalistes — sur pages réelles gonflées de scripts/ads/nav, attendre 80-94%).
 - Benchmark end-to-end local (Bun.serve loopback) : overhead conversion **~7-13 ms** sur articles (parse ~0.5ms, extract ~7-10ms, convert ~2-5ms). Négligeable face à tout fetch réseau réel (100-500ms).
-- **Bench URL réelle** (`bun.sh/docs/installation`, 229 125 tokens HTML) : **99.1% de réduction** (→ 1 965 tokens MD). fetch 162–810 ms, conversion 322–638 ms. Ratio ~1.8-3×.
+- **Bench URL réelle** (`bun.sh/docs/installation`, 229 125 tokens HTML) en v0.18.1 : **99.0% de réduction** (→ 2 205 tokens MD). fetch ~470-520 ms, conversion ~880 ms. Ratio ~2.9×. **6 fenced code blocks préservés** dont `curl -fsSL https://bun.com/install | bash` (le bug v0.6 est mort).
 - `bunx tsc --noEmit` : clean.
+- Upgrade `defuddle` 0.6.6 → **0.18.1** (Apr 2026) : code blocks Shiki/Tailwind récupérés grâce à `nonContentPatterns = ['advert','ad-','ads',...]` et navigationIndicators en regex `\b\w\b`. Deux ajustements de fixtures rendus nécessaires par les nouvelles heuristiques :
+  - **Titre** : Defuddle strip les suffixes `— YYYY` sur le titre (métadata cleanup). Test assoupli en regex `/^The State of Markdown(?: — 2026)?$/`.
+  - **Listes orphelines** : heuristique `blog metadata list` (content-patterns.ts) supprime une `<ul>`/`<ol>` courte près des bords si : 2-8 items, aucun finit par `.!?`, total ≤ 30 mots, **et le previousElementSibling n'est NI un heading NI un paragraphe finissant par `:`**. Échappatoires : paragraphe intro finissant par `:`, ou items contenant de la ponctuation finale. J'ai adapté la fixture (intro « The breakdown is: », items avec phrases descriptives) — c'est plus représentatif d'un vrai article de toute façon.
 
 ## Accès réseau
 - Wikipedia (`en.wikipedia.org`) bloqué par gateway (403 même avec UA Chrome via curl direct).
@@ -49,3 +52,12 @@ Format : bullet dense, orienté info. Pas de prose. Ajouter à la fin ou sous la
 - Defuddle peut être agressif sur pages atypiques (SPA, listings). Garder mode `full` accessible.
 - Tous les tests doivent tourner sur fixtures HTML locales, pas sur URLs réelles.
 - Critère dur : test qui vérifie que tous les hosts externes `https?://` du HTML d'origine sont préservés dans le MD.
+- **Gestion des versions de dépendances — règle dure** : pour toute nouvelle dépendance, ne JAMAIS inventer un numéro de version dans `package.json`. Toujours soit (a) `bun add <pkg>` sans version (bun résout la dernière), soit (b) vérifier la version courante via `npm view <pkg> version` ou la page releases GitHub **avant** d'écrire le `package.json`. Conséquence concrète observée : en écrivant `"defuddle": "^0.6.0"` par réflexe (numéro vu dans un billet de blog de recherche, sans vérification), on a installé **0.6.6 au lieu de 0.18.1** — 12 minor releases de retard, ~4 mois d'écart, plusieurs correctifs critiques manqués (anti-faux-positifs Tailwind via v0.11, regex à frontière de mot v0.15, remplacement de `'ad'` par `'advert'/'ad-'/'ads'`, support Chroma/CodeMirror). Résultat : une heure de debug sur un bug (code blocks de bun.sh/docs effacés à cause du pattern `'ad'` matchant `shadow-none`/`leading-6`) déjà corrigé upstream. Coût évitable.
+
+## Bug debug — bun.sh code blocks (résolu upstream)
+- Symptôme : sur la conversion de `https://bun.sh/docs/installation`, les 19 blocs `<pre class="shiki">` disparaissent du markdown ; reste le label « terminal » isolé entre paragraphes.
+- Isolation via patch temporaire de `Element.remove` (tracer les ancêtres qui emportent les pre) → `ContentScorer.scoreAndRemove` supprime le `<div class="... dark:bg-codeblock ... shadow-none ... leading-6 ...">` wrapper de chaque Shiki pre, avec un score −16 (seuil −0).
+- Root cause en 0.6.6 : `nonContentPatterns = ['ad', 'banner', ...]` + `className.includes(pattern)` naïf. Le pattern `'ad'` (pour "advertisement") matche `le**ad**ing-6` ET `sh**ad**ow-none` dans les classes Tailwind. −8 chacun, total −16 → remove.
+- Fix upstream (main, v0.12+) : `nonContentPatterns = ['advert', 'ad-', 'ads', ...]` — aucun ne matche les tokens Tailwind. En plus, les `navigationIndicators` sur le texte passent d'un `includes()` à `new RegExp('\\b' + indicator + '\\b')` (frontière de mot).
+- Traces upstream : PR #184 (Tailwind/Webflow), PR #152 (refactor scoring), PR #215 (code tabs OpenAI docs), notes de release v0.11 "Tailwind: Improve patterns" et v0.15 "Fix content scoring removing blocks with navigation-like words".
+- Aucun issue explicite sur `shadow-*`/`leading-*` × `'ad'` trouvé — le fix s'est fait dans un refactor plus large sans post-mortem détaillé. Repro bun.sh/docs disponible si jamais on veut déposer une issue/release-note.

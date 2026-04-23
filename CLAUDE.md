@@ -12,6 +12,7 @@
 - [`docs/FETCH_PLAN.md`](./docs/FETCH_PLAN.md) — plan d'implémentation initial : API, étapes, fichiers, vérification.
 - [`docs/COMPARISON.md`](./docs/COMPARISON.md) — bench Defuddle vs `@mozilla/readability` (vitesse, liens, code blocks) + reco : supporter les deux, Defuddle par défaut.
 - [`demo.md`](./demo.md) — démo exécutable via [simonw/showboat](https://github.com/simonw/showboat) : montre les tests, les benchmarks, la conversion d'une vraie page (bun.sh/docs → 99.1% de réduction de tokens). Regénérer avec `uvx showboat verify demo.md`.
+- [`demo-extractors.md`](./demo-extractors.md) — démo showboat dédiée à la feature dual-extractor : layout `src/extractors/`, tests (45 pass), comparaison fixtures, différentiel `` ```ts `` / plain fence, wiring du dispatch. Regénérer avec `uvx showboat verify demo-extractors.md`.
 
 ## Architecture actuelle
 

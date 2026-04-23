@@ -10,6 +10,7 @@
 - [`MEMORY.md`](./MEMORY.md) — journal dense : décisions, progression, pièges. À relire au début de chaque session avant tout travail.
 - [`docs/RESEARCH.md`](./docs/RESEARCH.md) — synthèse recherche web sur HTML→MD pour LLM : libs évaluées (Defuddle, Turndown, Readability, linkedom, undici), benchmarks de réduction de tokens, justification des choix.
 - [`docs/FETCH_PLAN.md`](./docs/FETCH_PLAN.md) — plan d'implémentation initial : API, étapes, fichiers, vérification.
+- [`docs/COMPARISON.md`](./docs/COMPARISON.md) — bench Defuddle vs `@mozilla/readability` (vitesse, liens, code blocks) + reco : supporter les deux, Defuddle par défaut.
 - [`demo.md`](./demo.md) — démo exécutable via [simonw/showboat](https://github.com/simonw/showboat) : montre les tests, les benchmarks, la conversion d'une vraie page (bun.sh/docs → 99.1% de réduction de tokens). Regénérer avec `uvx showboat verify demo.md`.
 
 ## Architecture actuelle
@@ -20,6 +21,7 @@
 - `src/timing.ts` — helpers `now()` / `elapsed()`.
 - `scripts/benchmark.ts` — CLI tokens + timings.
 - `scripts/bench-local.ts` — bench end-to-end via `Bun.serve`.
+- `scripts/compare-extractors.ts` — bench Defuddle vs `@mozilla/readability` (dev-dep) sur fixtures ou URLs ; mesure vitesse, texte, liens, code blocks.
 - `test/processHtml.test.ts` + `test/fetchMd.test.ts` — 29 tests sur fixtures locales.
 
 ## Projet — vue rapide
@@ -30,7 +32,7 @@ Objectif : `fetchMd(url)` en TypeScript — télécharge une page web et produit
 
 - **Bun** (runtime, deps, tests). Pas de npm, pas de build step.
 - **Dépendances runtime** : `defuddle`, `linkedom`.
-- **Dépendances dev** : `typescript`, `@types/bun`, `gpt-tokenizer`.
+- **Dépendances dev** : `typescript`, `@types/bun`, `gpt-tokenizer`, `@mozilla/readability` (utilisée uniquement par `scripts/compare-extractors.ts`).
 
 ## Commandes
 

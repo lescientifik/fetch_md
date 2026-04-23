@@ -10,6 +10,7 @@
 - [`MEMORY.md`](./MEMORY.md) — journal dense : décisions, progression, pièges. À relire au début de chaque session avant tout travail.
 - [`docs/RESEARCH.md`](./docs/RESEARCH.md) — synthèse recherche web sur HTML→MD pour LLM : libs évaluées (Defuddle, Turndown, Readability, linkedom, undici), benchmarks de réduction de tokens, justification des choix.
 - [`docs/FETCH_PLAN.md`](./docs/FETCH_PLAN.md) — plan d'implémentation initial : API, étapes, fichiers, vérification.
+- [`demo.md`](./demo.md) — démo exécutable via [simonw/showboat](https://github.com/simonw/showboat) : montre les tests, les benchmarks, la conversion d'une vraie page (bun.sh/docs → 99.1% de réduction de tokens). Regénérer avec `uvx showboat verify demo.md`.
 
 ## Architecture actuelle
 

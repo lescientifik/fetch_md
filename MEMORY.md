@@ -16,8 +16,19 @@ Format : bullet dense, orienté info. Pas de prose. Ajouter à la fin ou sous la
 - Tests unitaires : 25 tests sur `processHtml` + 4 sur `fetchMd` = **29/29 pass**.
 - Benchmark fixtures : réduction 53-59% (fixtures déjà minimalistes — sur pages réelles gonflées de scripts/ads/nav, attendre 80-94%).
 - Benchmark end-to-end local (Bun.serve loopback) : overhead conversion **~7-13 ms** sur articles (parse ~0.5ms, extract ~7-10ms, convert ~2-5ms). Négligeable face à tout fetch réseau réel (100-500ms).
-- Sandbox bloque l'outbound HTTP — `fetchMd` vérifié via `Bun.serve` local uniquement.
+- **Bench URL réelle** (`bun.sh/docs/installation`, 229 125 tokens HTML) : **99.1% de réduction** (→ 1 965 tokens MD). fetch 162–810 ms, conversion 322–638 ms. Ratio ~1.8-3×.
 - `bunx tsc --noEmit` : clean.
+
+## Accès réseau
+- Wikipedia (`en.wikipedia.org`) bloqué par gateway (403 même avec UA Chrome via curl direct).
+- OK : `example.com`, `bun.sh`, `github.com`, `raw.githubusercontent.com`.
+- Certains sites (MDN, simonw, HN) ont renvoyé 503 intermittents — rate-limit gateway.
+
+## Démo — `demo.md`
+- Construit avec [simonw/showboat](https://github.com/simonw/showboat) (`uvx showboat`). Document markdown exécutable : chaque bloc bash est un snapshot reproducible.
+- 9 exec blocs : layout, `bun test` (29 pass), bench fixtures, bench example.com, bench bun.sh/docs (99.1%), échantillon Markdown, test préservation anchors, grep footer, bench-local.
+- `uvx showboat verify demo.md` re-run tous les blocs et diff : les blocs `bench` diffèrent toujours (timings non-déterministes), mais les comptes de tokens et le statut des tests restent stables.
+- `uvx showboat extract demo.md` imprime la séquence de commandes pour recréer le doc de zéro.
 
 ## Leçons techniques apprises
 - `defuddle/node` importe jsdom en top-level → **500ms** d'overhead d'import. Inacceptable.
